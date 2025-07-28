@@ -1,0 +1,63 @@
+version: '3.8'
+
+# AWS ECS deployment configuration
+x-ecs-defaults: &ecs-defaults
+  logging:
+    driver: awslogs
+    options:
+      awslogs-group: /ecs/python-s3-webapp
+      awslogs-region: ${AWS_REGION:-us-east-1}
+      awslogs-create-group: "true"
+      awslogs-datetime-format: "%Y-%m-%d %H:%M:%S"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        - AWS_REGION=${AWS_REGION:-us-east-1}
+    image: ${ECR_REGISTRY:-}/python-s3-webapp-backend:${IMAGE_TAG:-latest}
+    ports:
+      - "5000:5000"
+    environment:
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - PROVIDER=${PROVIDER:-gemini}
+      - MODEL=${MODEL:-gemini-1.5-flash}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    <<: *ecs-defaults
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1024M
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        - REACT_APP_API_URL=${API_URL:-http://localhost:5000}
+    image: ${ECR_REGISTRY:-}/python-s3-webapp-frontend:${IMAGE_TAG:-latest}
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    environment:
+      - REACT_APP_API_URL=${API_URL:-http://localhost:5000}
+    <<: *ecs-defaults
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
