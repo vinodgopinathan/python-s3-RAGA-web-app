@@ -13,7 +13,7 @@ def check_database():
     
     # Database connection parameters
     db_params = {
-        'host': 'rag-vector-db.c27sai6q6wxe.us-east-1.rds.amazonaws.com',
+        'host': os.environ.get('POSTGRES_HOST', 'localhost'),
         'port': 5432,
         'database': 'postgres',
         'user': 'postgres',

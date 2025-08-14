@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 class VectorDBHelper:
     def __init__(self):
-        self.host = os.environ.get('POSTGRES_HOST', 'rag-vector-db.c27sai6q6wxe.us-east-1.rds.amazonaws.com')
+        self.host = os.environ.get('POSTGRES_HOST', 'localhost')
         self.port = os.environ.get('POSTGRES_PORT', '5432')
         self.user = os.environ.get('POSTGRES_USER', 'postgres')
         self.password = os.environ.get('POSTGRES_PASSWORD')
