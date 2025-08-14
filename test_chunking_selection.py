@@ -10,8 +10,11 @@ from utils.document_processor import DocumentProcessor
 
 # Set up environment for testing
 os.environ['CHUNKING_METHOD'] = 'adaptive'
-os.environ['LLM_PROVIDER'] = 'gemini' 
-os.environ['GEMINI_API_KEY'] = 'AIzaSyApqc6-5rx8bNEsBQHL6fnhpLKP6RgfgpU'
+os.environ['LLM_PROVIDER'] = 'gemini'
+# Ensure GEMINI_API_KEY is loaded from environment - set it before running this script
+if not os.environ.get('GEMINI_API_KEY'):
+    print("WARNING: GEMINI_API_KEY not set in environment. Please set it before running this test.")
+    print("Example: export GEMINI_API_KEY=your_actual_api_key")
 os.environ['CHUNK_SIZE'] = '1000'
 os.environ['CHUNK_OVERLAP'] = '200'
 

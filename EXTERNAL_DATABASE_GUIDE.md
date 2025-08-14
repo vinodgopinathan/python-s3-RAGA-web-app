@@ -106,7 +106,7 @@ SELECT * FROM pg_extension WHERE extname = 'vector';
 | `POSTGRES_USER` | Database username | `postgres` |
 | `POSTGRES_PASSWORD` | Database password | `YourSecurePassword123` |
 | `POSTGRES_DB` | Database name | `rag_system` |
-| `AWS_ACCESS_KEY_ID` | AWS access key | `AKIAIOSFODNN7EXAMPLE` |
+| `AWS_ACCESS_KEY_ID` | AWS access key | `YOUR_AWS_ACCESS_KEY` |
 | `AWS_SECRET_ACCESS_KEY` | AWS secret key | `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` |
 | `AWS_S3_BUCKET` | S3 bucket name | `my-rag-documents` |
 | `OPENAI_API_KEY` | OpenAI API key | `sk-...` |
