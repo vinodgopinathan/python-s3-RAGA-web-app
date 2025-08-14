@@ -1,47 +1,106 @@
 version: '3.8'
 
-# Local development configuration
+# AWS LLM RAGA Project - External Database Configuration
 services:
-  backend:
+  # Backend API Service (connects to external AWS RDS database) - CPU OPTIMIZED
+  aws-llm-raga-backend:
     build: 
-      context: .
-      dockerfile: backend/Dockerfile
-    image: python-s3-webapp-backend:local
+      context: ./backend
+      dockerfile: Dockerfile
+    image: aws-llm-raga-backend-cpu:latest
+    container_name: aws-llm-raga-api
     ports:
       - "5001:5000"
+    env_file:
+      - .env
     environment:
+      # Database Configuration (External AWS RDS)
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      
+      # Legacy support for POSTGRES_* variables
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      
+      # AWS S3 Configuration
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - AWS_S3_BUCKET=${AWS_S3_BUCKET}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      
+      # LLM Configuration
       - PROVIDER=${PROVIDER:-gemini}
       - MODEL=${MODEL:-gemini-1.5-flash}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      
+      # Chunking Configuration
+      - CHUNKING_METHOD=${CHUNKING_METHOD:-adaptive}
+      - CHUNK_SIZE=${CHUNK_SIZE:-1000}
+      - CHUNK_OVERLAP=${CHUNK_OVERLAP:-200}
+      - MAX_CONTEXT_LENGTH=${MAX_CONTEXT_LENGTH:-4000}
+      - USE_RECURSIVE_CHUNKING=${USE_RECURSIVE_CHUNKING:-true}
+      - SEMANTIC_THRESHOLD=${SEMANTIC_THRESHOLD:-0.7}
+      - LLM_PROVIDER=${LLM_PROVIDER:-gemini}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-all-MiniLM-L6-v2}
+      
+      # RAGA Configuration
+      - RAGA_SIMILARITY_THRESHOLD=${RAGA_SIMILARITY_THRESHOLD:-0.75}
+      - RAGA_MAX_CHUNKS=${RAGA_MAX_CHUNKS:-10}
+      - RAGA_CONFIDENCE_THRESHOLD=${RAGA_CONFIDENCE_THRESHOLD:-0.7}
+      - RAGA_ENABLE_ASSESSMENT=${RAGA_ENABLE_ASSESSMENT:-true}
+      - RAGA_ENABLE_CITATIONS=${RAGA_ENABLE_CITATIONS:-true}
+      
+      # Application Configuration
+      - FLASK_ENV=${FLASK_ENV:-development}
+      - FLASK_DEBUG=${FLASK_DEBUG:-true}
+      - UPLOAD_FOLDER=/app/uploads
+      - MAX_CONTENT_LENGTH=16777216
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 120s
     volumes:
       - ./backend/src:/app/src:ro  # Mount source for development
+      - aws_llm_raga_uploads:/app/uploads
     restart: unless-stopped
+    networks:
+      - aws-llm-raga-network
 
-  frontend:
+  # Frontend React Application
+  aws-llm-raga-frontend:
     build:
-      context: .
-      dockerfile: frontend/Dockerfile
-      args:
-        - REACT_APP_API_URL=http://localhost:5001
-    image: python-s3-webapp-frontend:local
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: aws-llm-raga-frontend:latest
+    container_name: aws-llm-raga-ui
     ports:
-      - "3000:80"  # Changed to 3000 for development
-    depends_on:
-      - backend
-    environment:
-      - REACT_APP_API_URL=http://localhost:5001
+      - "3000:80"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80"]
       interval: 30s
       timeout: 10s
       retries: 3
+    depends_on:
+      aws-llm-raga-backend:
+        condition: service_healthy
     restart: unless-stopped
+    networks:
+      - aws-llm-raga-network
+
+volumes:
+  aws_llm_raga_uploads:
+    name: aws_llm_raga_uploads_volume
+
+networks:
+  aws-llm-raga-network:
+    name: aws-llm-raga-network
+    driver: bridge

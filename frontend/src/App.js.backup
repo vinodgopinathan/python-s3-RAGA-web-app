@@ -1,0 +1,888 @@
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import {
+  Container,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
+  Typography,
+  Paper,
+} from '@mui/material';
+import { styled } from '@mui/material/styles';
+import './App.css';
+
+const Root = styled('div')(({ theme }) => ({
+  marginTop: theme.spacing(4),
+}));
+
+const Title = styled(Typography)(({ theme }) => ({
+  marginBottom: theme.spacing(2),
+}));
+
+const StyledPaper = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(2),
+}));
+
+const StyledList = styled(List)({
+  width: '100%',
+});
+
+function App() {
+  const [files, setFiles] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [error, setError] = useState(null);
+  const [prompt, setPrompt] = useState('');
+  const [llmResponse, setLlmResponse] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [fileQuery, setFileQuery] = useState('');
+  const [fileQueryResponse, setFileQueryResponse] = useState('');
+  const [lastFileQuery, setLastFileQuery] = useState(''); // Store the query that was sent
+  const [isFileQueryLoading, setIsFileQueryLoading] = useState(false);
+  const [filePattern, setFilePattern] = useState('');
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [activeTab, setActiveTab] = useState('files');
+
+  // Chunking state
+  const [directoryPath, setDirectoryPath] = useState('');
+  const [chunkingMethod, setChunkingMethod] = useState('adaptive');
+  const [chunkSize, setChunkSize] = useState(1000);
+  const [chunkOverlap, setChunkOverlap] = useState(200);
+  const [recursive, setRecursive] = useState(true);
+  const [processingJobs, setProcessingJobs] = useState({});
+  const [chunkingMethods, setChunkingMethods] = useState([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [chunkingStats, setChunkingStats] = useState(null);
+
+  const API_BASE_URL = process.env.REACT_APP_API_URL || '';
+  console.log('🔧 API_BASE_URL:', API_BASE_URL);
+
+  const fetchFiles = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/files`);
+      setFiles(response.data.files);
+    } catch (err) {
+      setError('Error fetching files from S3');
+      console.error('Error:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchFiles();
+    fetchChunkingMethods();
+    fetchChunkingStats();
+    fetchAllJobs();
+  }, []);
+
+  const formatBytes = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+  };
+
+  const handleFileSelect = (event) => {
+    setSelectedFile(event.target.files[0]);
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      setUploadStatus('Please select a file first');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    try {
+      await axios.post(`${API_BASE_URL}/api/upload`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      setUploadStatus('File uploaded successfully!');
+      setSelectedFile(null);
+      fetchFiles(); // Refresh the file list
+    } catch (error) {
+      setUploadStatus(`Error uploading file: ${error.message}`);
+    }
+  };
+
+  const handleGenerate = async () => {
+    if (!prompt) {
+      setLlmResponse('Please enter a prompt.');
+      return;
+    }
+    setIsLoading(true);
+    setLlmResponse('');
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/generate`, { prompt });
+      setLlmResponse(response.data.response);
+    } catch (error) {
+      setLlmResponse(`Error generating response: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFileQuery = async () => {
+    if (!fileQuery) {
+      setFileQueryResponse('Please enter a query.');
+      setLastFileQuery(''); // Clear last query if no input
+      return;
+    }
+    
+    // Store the original query for reference
+    const queryToSend = fileQuery.trim();
+    console.log('🔍 Original fileQuery:', fileQuery);
+    console.log('🔍 Query to send:', queryToSend);
+    
+    // Force a render by setting loading state
+    setIsFileQueryLoading(true);
+    setFileQueryResponse('Processing your query...');
+    setLastFileQuery('Processing...'); // Temporary value while loading
+    
+    // Add a small delay to ensure state is updated
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    try {
+      const requestData = {
+        query: queryToSend,
+        file_pattern: filePattern || undefined,
+        max_files: 5
+      };
+      console.log('📤 Sending request to backend:', requestData);
+      const response = await axios.post(`${API_BASE_URL}/api/query-files`, requestData);
+      console.log('📥 Response received:', response.data);
+      
+      // Set the actual full prompt that was sent to the LLM
+      const fullPrompt = response.data.full_prompt || queryToSend;
+      setLastFileQuery(fullPrompt);
+      console.log('🔍 Full LLM prompt set to:', fullPrompt);
+      
+      setFileQueryResponse(response.data.response);
+    } catch (error) {
+      console.error('❌ Error:', error);
+      setFileQueryResponse(`Error querying files: ${error.message}`);
+      setLastFileQuery(queryToSend); // Fallback to original query on error
+    } finally {
+      setIsFileQueryLoading(false);
+    }
+  };
+
+  const handleSearchFiles = async () => {
+    if (!searchQuery) {
+      setSearchResults([]);
+      return;
+    }
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/search-files`, { 
+        query: searchQuery 
+      });
+      setSearchResults(response.data.files);
+    } catch (error) {
+      console.error('Error searching files:', error);
+      setSearchResults([]);
+    }
+  };
+
+  const handleFileContentView = async (fileKey) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/file-content/${encodeURIComponent(fileKey)}`);
+      alert(`Content of ${fileKey}:\n\n${response.data.content.substring(0, 500)}...`);
+    } catch (error) {
+      alert(`Error reading file: ${error.message}`);
+    }
+  };
+
+  // ========== CHUNKING FUNCTIONS ==========
+  
+  const fetchChunkingMethods = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/chunking-methods`);
+      setChunkingMethods(response.data.methods);
+    } catch (error) {
+      console.error('Error fetching chunking methods:', error);
+    }
+  };
+
+  const fetchChunkingStats = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/stats`);
+      setChunkingStats(response.data.stats);
+    } catch (error) {
+      console.error('Error fetching chunking stats:', error);
+    }
+  };
+
+  const fetchAllJobs = async () => {
+    try {
+      const url = `${API_BASE_URL}/api/all-jobs`;
+      const response = await axios.get(url);
+      if (response.data && response.data.jobs) {
+        setProcessingJobs(response.data.jobs);
+        
+        // Start polling for any jobs that are still processing
+        Object.entries(response.data.jobs).forEach(([jobId, job]) => {
+          if (job.status === 'processing') {
+            pollJobStatus(jobId);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching jobs:', error);
+    }
+  };
+
+  const handleProcessDirectory = async () => {
+    if (!directoryPath.trim()) {
+      alert('Please enter a directory path');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/process-directory`, {
+        directory_path: directoryPath,
+        chunking_method: chunkingMethod,
+        chunk_size: chunkSize,
+        chunk_overlap: chunkOverlap,
+        recursive: recursive
+      });
+
+      if (response.data.job_id) {
+        const jobId = response.data.job_id;
+        setProcessingJobs(prev => ({
+          ...prev,
+          [jobId]: {
+            ...response.data,
+            startTime: new Date().toISOString()
+          }
+        }));
+        
+        // Job progress will be shown in the chunking tab
+        // (keeping user on current tab for better UX)
+        
+        // Start polling for job status
+        pollJobStatus(jobId);
+        alert(`Processing started! Job ID: ${jobId}`);
+      }
+    } catch (error) {
+      alert(`Error starting directory processing: ${error.response?.data?.message || error.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const pollJobStatus = async (jobId) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/job-status/${jobId}`);
+      const jobStatus = response.data.job_status;
+      
+      setProcessingJobs(prev => ({
+        ...prev,
+        [jobId]: jobStatus
+      }));
+
+      // Continue polling if job is still processing
+      if (jobStatus.status === 'processing') {
+        setTimeout(() => pollJobStatus(jobId), 2000); // Poll every 2 seconds
+      } else {
+        // Refresh stats when job completes
+        fetchChunkingStats();
+      }
+    } catch (error) {
+      console.error('Error polling job status:', error);
+    }
+  };
+
+  const handleCancelJob = async (jobId) => {
+    try {
+      await axios.post(`${API_BASE_URL}/api/cancel-job/${jobId}`);
+      setProcessingJobs(prev => ({
+        ...prev,
+        [jobId]: { ...prev[jobId], status: 'cancelled' }
+      }));
+    } catch (error) {
+      console.error('Error cancelling job:', error);
+    }
+  };
+
+  return (
+    <Container>
+      <Root>
+        <Title variant="h4">
+          S3 File Browser with LLM Integration
+        </Title>
+        
+        {/* Tab Navigation */}
+        <div className="tab-navigation">
+          <button 
+            className={activeTab === 'files' ? 'tab active' : 'tab'}
+            onClick={() => setActiveTab('files')}
+          >
+            File Browser
+          </button>
+          <button 
+            className={activeTab === 'chunking' ? 'tab active' : 'tab'}
+            onClick={() => setActiveTab('chunking')}
+          >
+            Chunking
+          </button>
+          <button 
+            className={activeTab === 'query' ? 'tab active' : 'tab'}
+            onClick={() => setActiveTab('query')}
+          >
+            Query Files
+          </button>
+          <button 
+            className={activeTab === 'search' ? 'tab active' : 'tab'}
+            onClick={() => setActiveTab('search')}
+          >
+            Search Files
+          </button>
+          <button 
+            className={activeTab === 'llm' ? 'tab active' : 'tab'}
+            onClick={() => setActiveTab('llm')}
+          >
+            LLM Chat
+          </button>
+        </div>
+
+        {/* File Browser Tab */}
+        {activeTab === 'files' && (
+          <div>
+            <StyledPaper>
+              {error ? (
+                <Typography color="error">{error}</Typography>
+              ) : (
+                <StyledList>
+                  {files.map((file) => (
+                    <ListItem key={file.key}>
+                      <ListItemText
+                        primary={file.key}
+                        secondary={`Last modified: ${new Date(file.last_modified).toLocaleString()}`}
+                      />
+                      <ListItemSecondaryAction>
+                        <button 
+                          onClick={() => handleFileContentView(file.key)}
+                          className="view-button"
+                        >
+                          View
+                        </button>
+                        <Typography variant="body2" color="textSecondary">
+                          {formatBytes(file.size)}
+                        </Typography>
+                      </ListItemSecondaryAction>
+                    </ListItem>
+                  ))}
+                </StyledList>
+              )}
+            </StyledPaper>
+            <div className="upload-section">
+              <input
+                type="file"
+                onChange={handleFileSelect}
+                className="file-input"
+              />
+              <button onClick={handleUpload} className="upload-button">
+                Upload to S3
+              </button>
+              {uploadStatus && <p className="status-message">{uploadStatus}</p>}
+            </div>
+          </div>
+        )}
+
+        {/* Chunking Tab */}
+        {activeTab === 'chunking' && (
+          <div className="chunking-section">
+            <Title variant="h5">Document Chunking & Vector Storage</Title>
+            <p>Process files from a directory and store them as chunks in the PostgreSQL vector database.</p>
+            
+            {/* Chunking Configuration */}
+            <div className="chunking-config">
+              <div className="config-row">
+                <label>Directory Path:</label>
+                <input
+                  type="text"
+                  className="directory-input"
+                  value={directoryPath}
+                  onChange={(e) => setDirectoryPath(e.target.value)}
+                  placeholder="/path/to/your/documents"
+                />
+              </div>
+              
+              <div className="config-row">
+                <label>Chunking Method:</label>
+                <select
+                  className="chunking-method-select"
+                  value={chunkingMethod}
+                  onChange={(e) => setChunkingMethod(e.target.value)}
+                >
+                  {chunkingMethods.map(method => (
+                    <option key={method.name} value={method.name}>
+                      {method.label}
+                    </option>
+                  ))}
+                </select>
+                {chunkingMethods.find(m => m.name === chunkingMethod) && (
+                  <p className="method-description">
+                    {chunkingMethods.find(m => m.name === chunkingMethod).description}
+                  </p>
+                )}
+              </div>
+              
+              <div className="config-row">
+                <div className="config-group">
+                  <label>Chunk Size:</label>
+                  <input
+                    type="number"
+                    className="chunk-size-input"
+                    value={chunkSize}
+                    onChange={(e) => setChunkSize(parseInt(e.target.value) || 1000)}
+                    min="100"
+                    max="4000"
+                  />
+                </div>
+                <div className="config-group">
+                  <label>Chunk Overlap:</label>
+                  <input
+                    type="number"
+                    className="chunk-overlap-input"
+                    value={chunkOverlap}
+                    onChange={(e) => setChunkOverlap(parseInt(e.target.value) || 200)}
+                    min="0"
+                    max="1000"
+                  />
+                </div>
+              </div>
+              
+              <div className="config-row">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={recursive}
+                    onChange={(e) => setRecursive(e.target.checked)}
+                  />
+                  Process subdirectories recursively
+                </label>
+              </div>
+              
+              <button 
+                onClick={handleProcessDirectory} 
+                className="process-button"
+                disabled={isProcessing}
+              >
+                {isProcessing ? 'Starting Processing...' : 'Process Directory'}
+              </button>
+            </div>
+
+            {/* Processing Jobs Status */}
+            {Object.keys(processingJobs).length > 0 && (
+              <div className="jobs-section">
+                <Typography variant="h6">Processing Jobs:</Typography>
+                {Object.entries(processingJobs).map(([jobId, job]) => (
+                  <div key={jobId} className="job-status">
+                    <div className="job-header">
+                      <span className="job-id">Job: {jobId}</span>
+                      <span className={`job-status-badge ${job.status}`}>{job.status}</span>
+                      {job.status === 'processing' && (
+                        <button 
+                          onClick={() => handleCancelJob(jobId)}
+                          className="cancel-button"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                    <div className="job-details">
+                      <div>Directory: {job.directory_path}</div>
+                      <div>Method: {job.chunking_method}</div>
+                      <div>Progress: {job.files_processed}/{job.files_found} files processed</div>
+                      {job.files_failed > 0 && <div>Failed: {job.files_failed} files</div>}
+                      {job.current_file && <div>Current: {job.current_file}</div>}
+                      {job.duration && <div>Duration: {Math.round(job.duration)}s</div>}
+                    </div>
+                    {job.errors && job.errors.length > 0 && (
+                      <div className="job-errors">
+                        <details>
+                          <summary>Errors ({job.errors.length})</summary>
+                          {job.errors.map((error, idx) => (
+                            <div key={idx} className="error-item">
+                              <strong>{error.file_path}:</strong> {error.error}
+                            </div>
+                          ))}
+                        </details>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Statistics */}
+            {chunkingStats && (
+              <div className="stats-section">
+                <Typography variant="h6">Database Statistics:</Typography>
+                <div className="stats-grid">
+                  <div className="stat-item">
+                    <span className="stat-label">Total Documents:</span>
+                    <span className="stat-value">{chunkingStats.overall?.total_documents || 0}</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-label">Total Chunks:</span>
+                    <span className="stat-value">{chunkingStats.overall?.total_chunks || 0}</span>
+                  </div>
+                  {chunkingStats.by_chunking_method && (
+                    <div className="stat-item">
+                      <span className="stat-label">By Method:</span>
+                      <div className="method-stats">
+                        {chunkingStats.by_chunking_method.map((methodData) => (
+                          <div key={methodData.chunking_method} className="method-stat">
+                            {methodData.chunking_method}: {methodData.document_count} docs ({methodData.total_chunks} chunks)
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <button 
+                  onClick={fetchChunkingStats}
+                  className="refresh-stats-button"
+                >
+                  Refresh Stats
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Enhanced Query Files Tab with RAGA */}
+        {activeTab === 'query' && (
+          <div className="query-section">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <Title variant="h5">
+                Query Files with LLM
+              </Title>
+            </div>
+            
+            <p>
+              Ask questions about your files and get intelligent responses based on their content.
+            </p>
+            
+            <div className="query-inputs">
+              <textarea
+                className="prompt-input"
+                value={fileQuery}
+                onChange={(e) => setFileQuery(e.target.value)}
+                placeholder="Ask a question about your files (e.g., 'What are the main topics in my documents?', 'Find all references to machine learning')"
+                rows={3}
+              />
+              
+              <input
+                type="text"
+                className="file-pattern-input"
+                value={filePattern}
+                onChange={(e) => setFilePattern(e.target.value)}
+                placeholder="File extensions (optional, e.g., .txt,.md,.pdf)"
+              />
+              
+              <button 
+                onClick={handleFileQuery} 
+                className="generate-button" 
+                disabled={isFileQueryLoading}
+                style={{
+                  backgroundColor: '#2196f3',
+                  color: 'white'
+                }}
+              >
+                {isFileQueryLoading 
+                  ? 'Analyzing Files...' 
+                  : 'Query Files'
+                }
+              </button>
+            </div>
+              <div className="raga-response-section" style={{ marginTop: '20px' }}>
+                {ragaResponse.processing && (
+                  <div style={{ 
+                    padding: '20px', 
+                    backgroundColor: '#fff3cd', 
+                    border: '1px solid #ffeaa7',
+                    borderRadius: '8px',
+                    textAlign: 'center'
+                  }}>
+                    <strong>🔄 RAGA Processing...</strong>
+                    <p>Performing multi-strategy retrieval and answer generation with assessment...</p>
+                  </div>
+                )}
+
+                {ragaResponse.success === false && (
+                  <div style={{ 
+                    padding: '15px', 
+                    backgroundColor: '#f8d7da', 
+                    border: '1px solid #f5c6cb',
+                    borderRadius: '8px',
+                    color: '#721c24'
+                  }}>
+                    <strong>❌ RAGA Error:</strong> {ragaResponse.error}
+                  </div>
+                )}
+
+                {ragaResponse.success && (
+                  <div className="raga-results">
+                    {/* Answer Section */}
+                    <div style={{ marginBottom: '24px' }}>
+                      <h3 style={{ color: '#2e7d32', marginBottom: '12px' }}>
+                        📋 Answer (Confidence: {(ragaResponse.confidence * 100).toFixed(1)}%)
+                      </h3>
+                      <div style={{
+                        backgroundColor: '#e8f5e8',
+                        border: '2px solid #4caf50',
+                        borderRadius: '8px',
+                        padding: '16px'
+                      }}>
+                        <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+                          {ragaResponse.answer}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Sources Section */}
+                    {ragaResponse.sources && ragaResponse.sources.length > 0 && (
+                      <div style={{ marginBottom: '24px' }}>
+                        <h3 style={{ color: '#1976d2', marginBottom: '12px' }}>
+                          📚 Sources ({ragaResponse.sources.length} chunks used)
+                        </h3>
+                        <div style={{ display: 'grid', gap: '12px' }}>
+                          {ragaResponse.sources.map((source, index) => (
+                            <div key={index} style={{
+                              backgroundColor: '#e3f2fd',
+                              border: '1px solid #2196f3',
+                              borderRadius: '6px',
+                              padding: '12px'
+                            }}>
+                              <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+                                Source {source.id}: {source.s3_key}
+                              </div>
+                              <div style={{ fontSize: '0.9em', color: '#666', marginBottom: '8px' }}>
+                                Similarity: {(source.similarity_score * 100).toFixed(1)}% | 
+                                Method: {source.chunking_method} | 
+                                Chunk: {source.chunk_index}
+                              </div>
+                              <div style={{ fontSize: '0.9em', fontStyle: 'italic' }}>
+                                {source.content_preview}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Quality Assessment */}
+                    {ragaResponse.quality_assessment && ragaResponse.quality_assessment.assessment_available && (
+                      <div style={{ marginBottom: '24px' }}>
+                        <h3 style={{ color: '#f57c00', marginBottom: '12px' }}>
+                          🎯 Quality Assessment
+                        </h3>
+                        <div style={{
+                          backgroundColor: '#fff8e1',
+                          border: '1px solid #ffb74d',
+                          borderRadius: '8px',
+                          padding: '16px'
+                        }}>
+                          {ragaResponse.quality_assessment.overall_score && (
+                            <div style={{ marginBottom: '12px' }}>
+                              <strong>Overall Score: {ragaResponse.quality_assessment.overall_score}/10</strong>
+                            </div>
+                          )}
+                          
+                          {ragaResponse.quality_assessment.accuracy && (
+                            <div style={{ marginBottom: '8px' }}>
+                              <strong>Accuracy:</strong> {ragaResponse.quality_assessment.accuracy.score}/10 - {ragaResponse.quality_assessment.accuracy.explanation}
+                            </div>
+                          )}
+                          
+                          {ragaResponse.quality_assessment.overall_assessment && (
+                            <div style={{ marginTop: '12px', fontStyle: 'italic' }}>
+                              {ragaResponse.quality_assessment.overall_assessment}
+                            </div>
+                          )}
+                          
+                          {ragaResponse.quality_assessment.text_assessment && (
+                            <div style={{ marginTop: '12px', whiteSpace: 'pre-wrap' }}>
+                              {ragaResponse.quality_assessment.text_assessment}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Metadata */}
+                    {ragaResponse.metadata && (
+                      <div style={{ marginBottom: '24px' }}>
+                        <h3 style={{ color: '#757575', marginBottom: '12px' }}>
+                          📊 Processing Metadata
+                        </h3>
+                        <div style={{
+                          backgroundColor: '#f5f5f5',
+                          border: '1px solid #ccc',
+                          borderRadius: '8px',
+                          padding: '12px',
+                          fontSize: '0.9em'
+                        }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                            <div><strong>Processing Time:</strong> {ragaResponse.metadata.processing_time?.toFixed(2)}s</div>
+                            <div><strong>Generation Time:</strong> {ragaResponse.metadata.generation_time?.toFixed(2)}s</div>
+                            <div><strong>Total Chunks Found:</strong> {ragaResponse.metadata.total_chunks_found}</div>
+                            <div><strong>Chunks Used:</strong> {ragaResponse.metadata.chunks_used}</div>
+                            <div><strong>LLM Provider:</strong> {ragaResponse.metadata.llm_provider}</div>
+                            <div><strong>Strategies:</strong> {ragaResponse.metadata.retrieval_strategies?.join(', ')}</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Basic Query Response (Non-RAGA Mode) */}
+            {!isRagaMode && (
+              <>
+                {/* Enhanced Debug information */}
+                <div style={{ 
+                  margin: '20px 0', 
+                  padding: '15px', 
+                  backgroundColor: '#ffcccc', 
+                  border: '3px solid #ff0000',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontWeight: 'bold'
+                }}>
+                  <h3 style={{ color: '#ff0000', margin: '0 0 10px 0' }}>🔧 DEBUG INFORMATION</h3>
+                  <div>📝 Current Input (fileQuery): "{fileQuery}"</div>
+                  <div>💾 Full LLM Prompt (lastFileQuery): "{lastFileQuery}"</div>
+                  <div>📏 Input Length: {fileQuery ? fileQuery.length : 0}</div>
+                  <div>📏 Full Prompt Length: {lastFileQuery ? lastFileQuery.length : 0}</div>
+                  <div>🔄 Loading State: {isFileQueryLoading ? 'YES' : 'NO'}</div>
+                  <div>📤 Response Present: {fileQueryResponse ? 'YES' : 'NO'}</div>
+                </div>
+                
+                {/* Simple query display without complex conditions */}
+                {lastFileQuery && (
+                  <div className="response-section" style={{ marginBottom: '20px' }}>
+                    <div className="query-display">
+                      <Typography variant="h6" style={{ color: '#1976d2', marginBottom: '8px' }}>
+                        📤 Full Prompt Sent to LLM:
+                      </Typography>
+                      <Paper className="query-paper" style={{ marginBottom: '16px', backgroundColor: '#e3f2fd', border: '2px solid #1976d2' }}>
+                        <Typography style={{ whiteSpace: 'pre-wrap', padding: '12px', fontStyle: 'italic', fontSize: '14px', fontFamily: 'monospace' }}>
+                          {lastFileQuery}
+                        </Typography>
+                      </Paper>
+                    </div>
+                  </div>
+                )}
+
+                {fileQueryResponse && (
+                  <div className="response-section">
+                    <div className="response-display">
+                      <Typography variant="h6" style={{ color: '#2e7d32', marginBottom: '8px' }}>
+                        📥 LLM Response:
+                      </Typography>
+                      <Paper className="response-paper" style={{ backgroundColor: '#e8f5e8', border: '2px solid #2e7d32' }}>
+                        <Typography style={{ whiteSpace: 'pre-wrap', padding: '12px' }}>
+                          {fileQueryResponse}
+                        </Typography>
+                      </Paper>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Search Files Tab */}
+        {activeTab === 'search' && (
+          <div className="search-section">
+            <Title variant="h5">Search Files</Title>
+            <p>Search for files by name or content.</p>
+            
+            <div className="search-inputs">
+              <input
+                type="text"
+                className="search-input"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search for files by name or content"
+              />
+              <button onClick={handleSearchFiles} className="search-button">
+                Search
+              </button>
+            </div>
+            
+            {searchResults.length > 0 && (
+              <div className="search-results">
+                <Typography variant="h6">Search Results:</Typography>
+                <StyledList>
+                  {searchResults.map((file) => (
+                    <ListItem key={file.key}>
+                      <ListItemText
+                        primary={file.key}
+                        secondary={`${file.match_type === 'content' ? 'Content match' : 'Filename match'} | ${new Date(file.last_modified).toLocaleString()}`}
+                      />
+                      <ListItemSecondaryAction>
+                        <button 
+                          onClick={() => handleFileContentView(file.key)}
+                          className="view-button"
+                        >
+                          View
+                        </button>
+                        <Typography variant="body2" color="textSecondary">
+                          {formatBytes(file.size)}
+                        </Typography>
+                      </ListItemSecondaryAction>
+                    </ListItem>
+                  ))}
+                </StyledList>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* LLM Chat Tab */}
+        {activeTab === 'llm' && (
+          <div className="llm-section">
+            <Title variant="h5">LLM Chat</Title>
+            <p>Chat with the LLM without file context.</p>
+            
+            <textarea
+              className="prompt-input"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Enter your prompt for the LLM"
+            />
+            <button onClick={handleGenerate} className="generate-button" disabled={isLoading}>
+              {isLoading ? 'Generating...' : 'Generate Response'}
+            </button>
+            {llmResponse && (
+              <div className="response-section">
+                <Typography variant="h6">Response:</Typography>
+                <Paper className="response-paper">
+                  <Typography style={{ whiteSpace: 'pre-wrap' }}>{llmResponse}</Typography>
+                </Paper>
+              </div>
+            )}
+          </div>
+        )}
+      </Root>
+    </Container>
+  );
+}
+
+export default App;

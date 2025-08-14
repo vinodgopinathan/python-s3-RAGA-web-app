@@ -271,3 +271,399 @@
     gap: 10px;
   }
 }
+
+/* Chunking Section Styles */
+.chunking-section {
+  padding: 20px;
+}
+
+.chunking-config {
+  background-color: #f9f9f9;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid #e0e0e0;
+}
+
+.config-row {
+  margin-bottom: 15px;
+}
+
+.config-row label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: #333;
+}
+
+.directory-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.directory-input:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+}
+
+.chunking-method-select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: white;
+}
+
+.chunking-method-select:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+}
+
+.method-description {
+  margin-top: 5px;
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
+}
+
+.config-group {
+  display: inline-block;
+  width: 48%;
+  margin-right: 4%;
+}
+
+.config-group:last-child {
+  margin-right: 0;
+}
+
+.chunk-size-input,
+.chunk-overlap-input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.chunk-size-input:focus,
+.chunk-overlap-input:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2);
+}
+
+.process-button {
+  background-color: #4CAF50;
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  transition: background-color 0.3s;
+  margin-top: 10px;
+}
+
+.process-button:hover:not(:disabled) {
+  background-color: #45a049;
+}
+
+.process-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Jobs Section Styles */
+.jobs-section {
+  margin-bottom: 20px;
+}
+
+.job-status {
+  background-color: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 10px;
+}
+
+.job-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.job-id {
+  font-weight: 500;
+  color: #333;
+}
+
+.job-status-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.job-status-badge.processing {
+  background-color: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+.job-status-badge.completed {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.job-status-badge.failed {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.job-status-badge.cancelled {
+  background-color: #e2e3e5;
+  color: #383d41;
+  border: 1px solid #d6d8db;
+}
+
+.cancel-button {
+  background-color: #dc3545;
+  color: white;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.3s;
+}
+
+.cancel-button:hover {
+  background-color: #c82333;
+}
+
+.job-details {
+  font-size: 14px;
+  color: #666;
+}
+
+.job-details div {
+  margin-bottom: 4px;
+}
+
+.job-errors {
+  margin-top: 10px;
+}
+
+.job-errors details {
+  cursor: pointer;
+}
+
+.job-errors summary {
+  font-weight: 500;
+  color: #dc3545;
+  padding: 5px;
+  background-color: #f8d7da;
+  border-radius: 4px;
+}
+
+.error-item {
+  padding: 5px;
+  margin: 5px 0;
+  background-color: #fff5f5;
+  border-left: 3px solid #dc3545;
+  font-size: 12px;
+}
+
+/* Statistics Section Styles */
+.stats-section {
+  background-color: #f0f8ff;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #b3d9ff;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.stat-item {
+  background-color: white;
+  padding: 15px;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+
+.stat-label {
+  display: block;
+  font-weight: 500;
+  color: #666;
+  margin-bottom: 5px;
+}
+
+.stat-value {
+  display: block;
+  font-size: 24px;
+  font-weight: bold;
+  color: #1976d2;
+}
+
+.method-stats {
+  margin-top: 5px;
+}
+
+.method-stat {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 2px;
+}
+
+.refresh-stats-button {
+  background-color: #1976d2;
+  color: white;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+.refresh-stats-button:hover {
+  background-color: #1565c0;
+}
+
+/* Mobile Responsive for Chunking */
+@media (max-width: 768px) {
+  .config-group {
+    width: 100%;
+    margin-right: 0;
+    margin-bottom: 15px;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .job-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+}
+
+/* RAGA-specific styles */
+.raga-response-section {
+  margin-top: 20px;
+}
+
+.raga-results {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+  background-color: #fafafa;
+}
+
+.raga-answer {
+  background-color: #e8f5e8;
+  border: 2px solid #4caf50;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.raga-sources {
+  margin-bottom: 20px;
+}
+
+.raga-source-item {
+  background-color: #e3f2fd;
+  border: 1px solid #2196f3;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.raga-assessment {
+  background-color: #fff8e1;
+  border: 1px solid #ffb74d;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.raga-metadata {
+  background-color: #f5f5f5;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 0.9em;
+}
+
+.raga-config-panel {
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.raga-config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.raga-mode-toggle {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.3s;
+}
+
+.raga-mode-toggle:hover {
+  opacity: 0.9;
+}
+
+.raga-processing {
+  padding: 20px;
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.raga-error {
+  padding: 15px;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 8px;
+  color: #721c24;
+}
+
+@media (max-width: 768px) {
+  .raga-config-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .raga-results {
+    padding: 15px;
+  }
+}

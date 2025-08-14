@@ -1,0 +1,36 @@
+# 🚀 CPU-Optimized Requirements (Optimized for Docker layer caching)
+# NOTE: Ordered by change frequency - stable dependencies first for better caching
+
+# 🧠 CPU-Only PyTorch from specialized index (saves ~5GB and 10+ minutes build time)
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# Core stable dependencies (change rarely - cached)
+flask==2.3.3
+flask-cors==4.0.0
+requests==2.31.0
+boto3==1.28.84
+python-dotenv==1.0.0
+psycopg2-binary==2.9.7
+gunicorn==20.1.0
+numpy==1.24.3
+scikit-learn==1.3.0
+pypdf==3.17.0
+PyPDF2==3.0.1
+
+# Document parsing libraries (stable)
+pytesseract==0.3.10
+xlrd==2.0.1
+openpyxl==3.1.2
+python-docx==1.1.0
+Pillow==10.0.1
+pdf2image==1.16.3
+
+# Heavy ML dependencies (change less frequently)
+torch==2.1.0+cpu
+sentence-transformers==2.7.0
+huggingface_hub==0.23.4
+
+# LangChain and AI libraries (may change more often)
+google-generativeai==0.3.2
+langchain==0.0.340
+langchain-community==0.0.8

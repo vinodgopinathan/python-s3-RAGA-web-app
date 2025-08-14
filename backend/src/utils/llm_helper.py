@@ -1,7 +1,13 @@
 import os
 import google.generativeai as genai
-from openai import OpenAI
 from .s3_helper import S3Helper
+
+# Conditional OpenAI import to avoid initialization issues when using Gemini
+try:
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
 
 class LLMHelper:
     def __init__(self, provider=None):
@@ -17,6 +23,8 @@ class LLMHelper:
             genai.configure(api_key=self.api_key)
             self.model = genai.GenerativeModel(self.model_name)
         elif self.provider == 'openai':
+            if not OPENAI_AVAILABLE:
+                raise ValueError("OpenAI library not available. Please install openai package.")
             self.api_key = os.environ.get('OPENAI_API_KEY')
             self.model_name = os.environ.get('MODEL')
             print(f"Initializing LLMHelper with provider: {self.provider}, model: {self.model_name}")
